@@ -1,0 +1,166 @@
+---
+title: "Food Swamps"
+author: "TheDariaEdits"
+date: "8/1/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# Food Swamp Analysis 
+```{r Load Packages, include=FALSE}
+library(tidyverse)
+library(readxl)
+library(data.table)
+library(IDPmisc)
+library(xtable)
+```
+
+I chose cardiovascular disease deaths instead of BMI as dependent variable. Gini index is a measure of residential stratification commonly utilizd by the U.S. Census Bureau. 
+```{r Data Download}
+CVD_df <- read_csv("Total CVD Deaths 15-17.csv", 
+                   col_types = cols(display_name = col_skip(), 
+                  theme_range = col_skip()))
+
+Gini_Index <- read_csv("Gini Index.csv", 
+                       col_types = cols(County = col_skip(), 
+                      State = col_skip()), skip = 1)
+
+access <- read_excel("Food Atlas Data.xls","ACCESS") %>% 
+                    select(c("FIPS","State","County","LACCESS_LOWI15","PCT_LACCESS_LOWI15"))
+
+stores <- read_excel("Food Atlas Data.xls","STORES") %>% 
+                    select(c("FIPS","GROC14","SUPERC14","CONVS14","SPECS14"))
+
+restaurants <- read_excel("Food Atlas Data.xls","RESTAURANTS") %>% 
+                          select(c("FIPS","FFR14"))
+
+SNAP <- read_excel("Food Atlas Data.xls","ASSISTANCE") %>% 
+                  select(c("FIPS","PCT_SNAP16"))
+
+markets <- read_excel("Food Atlas Data.xls","LOCAL") %>% 
+                      select(c("FIPS","FMRKT16"))
+
+milk_soda <- read_excel("Food Atlas Data.xls","PRICES_TAXES") %>% 
+                        select(c("FIPS","MILK_SODA_PRICE10"))
+
+socioeconomic <- read_excel("Food Atlas Data.xls", "SOCIOECONOMIC") %>% 
+                            select(c("FIPS","PCT_NHWHITE10","PCT_NHBLACK10",
+                                     "PCT_HISP10","PCT_NHASIAN10","PCT_NHNA10","PCT_NHPI10",
+                                     "PCT_65OLDER10","PCT_18YOUNGER10","MEDHHINC15"))
+```
+
+I did multiple joins to create data frame, but would be interested in seeing if there is a more efficent way. Maybe an option that includes piping so there are no intermediates.
+
+I also added the calculated food swamp variables and added them to the data frame. My last data preparation step included removing all Puerto Rico values since there was no data for the variables, but the original source include their FIPS. This created an abundance of Na's. Lastly, I removed any Na's from the Value column as this meant their was no CVD deaths data to analyze and would throw errors in later analysis. 
+
+##Data Preparation
+```{r Data Preparation}
+INT1 <- full_join(access,markets, by = "FIPS")
+INT2 <- full_join(INT1,stores, by = "FIPS")
+INT3 <- full_join(INT2,restaurants, by = "FIPS")
+INT4 <- full_join(INT3,CVD_df, by= c("FIPS"="cnty_fips"))
+INT5 <- full_join(INT4,milk_soda, by = "FIPS")
+INT6 <- full_join(INT5,SNAP, by = "FIPS")
+INT7 <- full_join(INT6,Gini_Index, by = c("FIPS"="id"))
+FINAL_df <- full_join(INT7,socioeconomic, by = "FIPS")
+
+
+FINAL_df <- mutate(FINAL_df, RFEI = (FINAL_df$FFR14+FINAL_df$CONVS14)/(FINAL_df$GROC14))
+FINAL_df<- mutate(FINAL_df, Exp_RFEI_1 = (FINAL_df$CONVS14 + FINAL_df$SUPERC14 + FINAL_df$FFR14)/(FINAL_df$GROC14 + FINAL_df$FMRKT16 + FINAL_df$SPECS14))
+FINAL_df<- mutate(FINAL_df, Exp_RFEI_2 = (FINAL_df$CONVS14 + FINAL_df$FFR14)/(FINAL_df$GROC14 + FINAL_df$FMRKT16 + FINAL_df$SPECS14 + FINAL_df$SUPERC14))
+
+FINAL_df <- filter(FINAL_df, !is.na(FINAL_df$State))
+FINAL_df <- filter(FINAL_df, !is.na(FINAL_df$Value))
+
+missing <- FINAL_df[!complete.cases(FINAL_df),]
+```
+
+I had to clean the environment of all the intermediates. It was driving me insane! I only deleted the intermediates once I confirmed the data was accurately added to the main data frame. 
+```{r Clean Global Environment, include=FALSE}
+rm(access, CVD_df, Gini_Index, markets, milk_soda, restaurants, SNAP, stores, socioeconomic, INT1, INT2, INT3, INT4, INT5, INT6, INT7)
+```
+
+##Analysis
+```{r Descriptive Statistics}
+knitr::kable(summary(FINAL_df), caption = "Descriptive Statistics")
+
+```
+
+I did an 80-10-10 data split for analysis.
+```{r Split Data}
+set.seed(123)
+spec = c(train = .8, test = .1, valid = .1)
+
+g = sample(cut(
+  seq(nrow(FINAL_df)), 
+  nrow(FINAL_df)*cumsum(c(0,spec)),
+  labels = names(spec)
+))
+
+res = split(FINAL_df, g)
+
+lapply(seq_along(res), function(x) {
+  assign(c("train", "test", "valid")[x], res[[x]], envir=.GlobalEnv)
+})
+```
+
+```{r Simple Linear Regressions, eval=FALSE, include=FALSE}
+lm_1 <- lm(RFEI ~ Value, data = train, NaRV.omit(RFEI))
+lm_2 <- lm(Exp_RFEI_1 ~ Value, data = train, NaRV.omit(Exp_RFEI_1))
+lm_3 <- lm(Exp_RFEI_2 ~ Value, data = train, NaRV.omit(Exp_RFEI_2))
+
+#summary to see models fit
+summary(lm_1)
+summary(lm_2)
+summary(lm_3)
+
+#All of these models were poor fits based off of the summaries.
+```
+
+```{r Possible Multivariate Models}
+m_1 <- lm(Value ~ RFEI + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=train, NaRV.omit(RFEI))
+summary(m_1)
+
+m_2 <- lm(Value ~ Exp_RFEI_1 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=train, NaRV.omit(Exp_RFEI_1))
+summary(m_2)
+
+m_3 <- lm(Value ~ Exp_RFEI_2 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=train, NaRV.omit(Exp_RFEI_2))
+summary(m_3)
+
+m_4 <- lm(Value ~ RFEI + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15 + PCT_SNAP16, data = train, NaRV.omit(RFEI))
+
+m_5 <- lm(Value ~ Exp_RFEI_1 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15 + PCT_SNAP16, data = train, NaRV.omit(Exp_RFEI_1))
+
+m_6 <- lm(Value ~ Exp_RFEI_2 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15 + PCT_SNAP16, data = train, NaRV.omit(Exp_RFEI_2))
+```
+
+Multivariate model 1 has the highest R squared, significant p, and t values. I will go forward with models 1-3. I am not going forward with models 3-6 because it showed too small of an increase in fit for adding another variable. 
+
+```{r Validation}
+Valid_1 <- lm(Value ~ RFEI + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=valid, NaRV.omit(RFEI))
+summary(Valid_1)
+anova(Valid_1)
+
+Valid_2 <- lm(Value ~ Exp_RFEI_1 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=valid, NaRV.omit(Exp_RFEI_1))
+summary(Valid_2)
+anova(Valid_2)
+
+Valid_3 <- lm(Value ~ Exp_RFEI_2 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=valid, NaRV.omit(Exp_RFEI_2))
+summary(Valid_3)
+anova(Valid_3)
+```
+
+The validation stage suggests that model 3 is the best model for the test stage.
+```{r Test}
+test_model <- lm(Value ~ Exp_RFEI_2 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=test, NaRV.omit(Exp_RFEI_2))
+summary(test_model)
+anova(test_model)
+```
+
+```{r Plot}
+plot(Value ~ Exp_RFEI_2 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=test, NaRV.omit(Exp_RFEI_2))
+plot(test_model)
+```
+
+
