@@ -60,6 +60,14 @@ FINAL_df <- mutate(FINAL_df, RFEI = (FINAL_df$FFR14 + FINAL_df$CONVS14)/(FINAL_d
 FINAL_df<- mutate(FINAL_df, Exp_RFEI_1 = (FINAL_df$CONVS14 + FINAL_df$SUPERC14 + FINAL_df$FFR14)/(FINAL_df$GROC14 + FINAL_df$FMRKT16 + FINAL_df$SPECS14))
 FINAL_df<- mutate(FINAL_df, Exp_RFEI_2 = (FINAL_df$CONVS14 + FINAL_df$FFR14)/(FINAL_df$GROC14 + FINAL_df$FMRKT16 + FINAL_df$SPECS14 + FINAL_df$SUPERC14))
 
+#Rename variables to be more syntactically valid 
+FINAL_df <- rename(FINAL_df, c("Low_Access"="LACCESS_LOWI15","Low Access_PCT"="PCT_LACCESS_LOWI15","Farmers"="FMRKT16","Grocery"="GROC14",
+                               "Supercenter"="SUPERC14","Convenience"="CONVS14","Specialty"="SPECS14","Fast_Food"="FFR14","CVD"="Value",
+                               "Milk_Soda"="MILK_SODA_PRICE10","SNAP_PCT"="PCT_SNAP16","Gini_Index"="Estimate!!Gini Index",
+                               "Gini_Index_Margin"="Margin of Error!!Gini Index","WHITE_PCT"="PCT_NHWHITE10","BLACK_PCT"="PCT_NHBLACK10",
+                               "HISPANIC_PCT"="PCT_HISP10","ASIAN_PCT"="PCT_NHASIAN10","Native_PCT"="PCT_NHNA10","Pacific_PCT"="PCT_NHPI10",
+                               "65Older_PCT"="PCT_65OLDER10","18Younger_PCT"="PCT_18YOUNGER10","Median_Income"="MEDHHINC15"))
+
 #Remove data where state is NA as that removes Puerto Rico where data is missing. Also deleting any rows that have Na in Value since they have no CVD data to analyze.
 FINAL_df <- na.omit(FINAL_df)
 
@@ -93,9 +101,9 @@ lapply(seq_along(res), function(x) {
 })
 
 #linear regressions for CVF
-lm_1 <- lm(RFEI ~ Value, data = train, NaRV.omit(RFEI))
-lm_2 <- lm(Exp_RFEI_1 ~ Value, data = train, NaRV.omit(Exp_RFEI_1))
-lm_3 <- lm(Exp_RFEI_2 ~ Value, data = train, NaRV.omit(Exp_RFEI_2))
+lm_1 <- lm(RFEI ~ CVD, data = train, NaRV.omit(RFEI))
+lm_2 <- lm(Exp_RFEI_1 ~ CVD, data = train, NaRV.omit(Exp_RFEI_1))
+lm_3 <- lm(Exp_RFEI_2 ~ CVD, data = train, NaRV.omit(Exp_RFEI_2))
 
 #summary to see models fit
 summary(lm_1)
@@ -105,43 +113,43 @@ summary(lm_3)
 #From T and P value it is statistically significant but the r square does not explain variance so need a better fit model
 
 #multivariate 
-m_1 <- lm(Value ~ RFEI + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=train, NaRV.omit(RFEI))
+m_1 <- lm(CVD ~ RFEI + Low_Access + Gini_Index + Median_Income, data=train, NaRV.omit(RFEI))
 summary(m_1)
 
-m_2 <- lm(Value ~ Exp_RFEI_1 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=train, NaRV.omit(Exp_RFEI_1))
+m_2 <- lm(CVD ~ Exp_RFEI_1 + Low_Access + Gini_Index + Median_Income, data=train, NaRV.omit(Exp_RFEI_1))
 summary(m_2)
 
-m_3 <- lm(Value ~ Exp_RFEI_2 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=train, NaRV.omit(Exp_RFEI_2))
+m_3 <- lm(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income, data=train, NaRV.omit(Exp_RFEI_2))
 summary(m_3)
 
-m_4 <- lm(Value ~ RFEI + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15 + PCT_SNAP16, data = train, NaRV.omit(RFEI))
+m_4 <- lm(CVD ~ RFEI + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data = train, NaRV.omit(RFEI))
 summary(m_4)
 
-m_5 <- lm(Value ~ Exp_RFEI_1 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15 + PCT_SNAP16, data = train, NaRV.omit(Exp_RFEI_1))
+m_5 <- lm(CVD ~ Exp_RFEI_1 + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data = train, NaRV.omit(Exp_RFEI_1))
 summary(m_5)
 
-m_6 <- lm(Value ~ Exp_RFEI_2 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15 + PCT_SNAP16, data = train, NaRV.omit(Exp_RFEI_2))
+m_6 <- lm(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data = train, NaRV.omit(Exp_RFEI_2))
 summary(m_6)
 
-#multivariate model 3 has highest R squared, significant p and t values
+#multivariate models 1 and 3 have highest R squared, significant p and t values
 #will go forward with models 1-3, not going forward with models 3-6 b/c it showed too small of increase in fit for adding another variable
 
 #now going to valid stage
 
-Valid_1 <- lm(Value ~ RFEI + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=valid, NaRV.omit(RFEI))
+Valid_1 <- lm(CVD ~ RFEI + Low_Access + Gini_Index + Median_Income, data=valid, NaRV.omit(RFEI))
 summary(Valid_1)
 anova(Valid_1)
 
-Valid_2 <- lm(Value ~ Exp_RFEI_1 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=valid, NaRV.omit(Exp_RFEI_1))
+Valid_2 <- lm(CVD ~ Exp_RFEI_1 + Low_Access + Gini_Index + Median_Income, data=valid, NaRV.omit(Exp_RFEI_1))
 summary(Valid_2)
 anova(Valid_2)
 
-Valid_3 <- lm(Value ~ Exp_RFEI_2 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=valid, NaRV.omit(Exp_RFEI_2))
+Valid_3 <- lm(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income, data=valid, NaRV.omit(Exp_RFEI_2))
 summary(Valid_3)
 anova(Valid_3)
 
 #this data suggests model 3 is better 
-test_model <- lm(Value ~ Exp_RFEI_2 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=test, NaRV.omit(Exp_RFEI_2))
+test_model <- lm(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income, data=test, NaRV.omit(Exp_RFEI_2))
 summary(test_model)
 anova(test_model)
 
