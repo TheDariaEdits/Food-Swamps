@@ -60,11 +60,7 @@ FINAL_df <- mutate(FINAL_df, RFEI = (FINAL_df$FFR14 + FINAL_df$CONVS14)/(FINAL_d
 FINAL_df<- mutate(FINAL_df, Exp_RFEI_1 = (FINAL_df$CONVS14 + FINAL_df$SUPERC14 + FINAL_df$FFR14)/(FINAL_df$GROC14 + FINAL_df$FMRKT16 + FINAL_df$SPECS14))
 FINAL_df<- mutate(FINAL_df, Exp_RFEI_2 = (FINAL_df$CONVS14 + FINAL_df$FFR14)/(FINAL_df$GROC14 + FINAL_df$FMRKT16 + FINAL_df$SPECS14 + FINAL_df$SUPERC14))
 
-<<<<<<< HEAD
 #Rename variables to be more syntactically valid 
-=======
-#Rename variables to be more syntatically valid 
->>>>>>> 89dc8d1035bcbca0d5160663cc2b4da2473208d9
 FINAL_df <- rename(FINAL_df, c("Low_Access"="LACCESS_LOWI15","Low Access_PCT"="PCT_LACCESS_LOWI15","Farmers"="FMRKT16","Grocery"="GROC14",
                                "Supercenter"="SUPERC14","Convenience"="CONVS14","Specialty"="SPECS14","Fast_Food"="FFR14","CVD"="Value",
                                "Milk_Soda"="MILK_SODA_PRICE10","SNAP_PCT"="PCT_SNAP16","Gini_Index"="Estimate!!Gini Index",
@@ -84,9 +80,6 @@ rm(access, CVD_df, Gini_Index, markets, milk_soda, restaurants, SNAP, stores,
 
 #descriptive stats
 summary(FINAL_df)
-
-#margins too big so need to specify columns better
-#pairs(FINAL_df[4:25])
 
 #Split data
 set.seed(123)
