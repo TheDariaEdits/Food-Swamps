@@ -52,7 +52,7 @@ socioeconomic <- read_excel("Food Atlas Data.xls", "SOCIOECONOMIC") %>%
 
 I did multiple joins to create data frame, but would be interested in seeing if there is a more efficent way. Maybe an option that includes piping so there are no intermediates.
 
-I also added the calculated food swamp variables and added them to the data frame. My last data preparation step included removing all Puerto Rico values since there was no data for the variables, but the original source include their FIPS. This created an abundance of Na's. Lastly, I removed any Na's from the Value column as this meant their was no CVD deaths data to analyze and would throw errors in later analysis. 
+I also added the calculated food swamp variables and added them to the data frame. My last data preparation step included removing all Puerto Rico values since there was no data for the variables, but the original source include their FIPS. This means there are some Na's so I removed the Na's so that it would not throw errors in later analysis. The sample data frame went from ~3200 to ~3000 counties.
 
 ##Data Preparation
 ```{r Data Preparation}
@@ -70,8 +70,8 @@ FINAL_df <- mutate(FINAL_df, RFEI = (FINAL_df$FFR14+FINAL_df$CONVS14)/(FINAL_df$
 FINAL_df<- mutate(FINAL_df, Exp_RFEI_1 = (FINAL_df$CONVS14 + FINAL_df$SUPERC14 + FINAL_df$FFR14)/(FINAL_df$GROC14 + FINAL_df$FMRKT16 + FINAL_df$SPECS14))
 FINAL_df<- mutate(FINAL_df, Exp_RFEI_2 = (FINAL_df$CONVS14 + FINAL_df$FFR14)/(FINAL_df$GROC14 + FINAL_df$FMRKT16 + FINAL_df$SPECS14 + FINAL_df$SUPERC14))
 
-FINAL_df <- filter(FINAL_df, !is.na(FINAL_df$State))
-FINAL_df <- filter(FINAL_df, !is.na(FINAL_df$Value))
+
+FINAL_df <- na.omit(FINAL_df)
 
 missing <- FINAL_df[!complete.cases(FINAL_df),]
 ```
@@ -90,7 +90,7 @@ knitr::kable(summary(FINAL_df), caption = "Descriptive Statistics")
 I did an 80-10-10 data split for analysis.
 ```{r Split Data}
 set.seed(123)
-spec = c(train = .8, test = .1, valid = .1)
+spec = c(train = .7, test = .15, valid = .15)
 
 g = sample(cut(
   seq(nrow(FINAL_df)), 
@@ -105,6 +105,7 @@ lapply(seq_along(res), function(x) {
 })
 ```
 
+All analyses have NaRV.omit which omits Na's/NaN/Inf/-Inf.
 ```{r Simple Linear Regressions, eval=FALSE, include=FALSE}
 lm_1 <- lm(RFEI ~ Value, data = train, NaRV.omit(RFEI))
 lm_2 <- lm(Exp_RFEI_1 ~ Value, data = train, NaRV.omit(Exp_RFEI_1))
@@ -129,13 +130,16 @@ m_3 <- lm(Value ~ Exp_RFEI_2 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHIN
 summary(m_3)
 
 m_4 <- lm(Value ~ RFEI + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15 + PCT_SNAP16, data = train, NaRV.omit(RFEI))
+summary(m_4)
 
 m_5 <- lm(Value ~ Exp_RFEI_1 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15 + PCT_SNAP16, data = train, NaRV.omit(Exp_RFEI_1))
+summary(m_5)
 
 m_6 <- lm(Value ~ Exp_RFEI_2 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15 + PCT_SNAP16, data = train, NaRV.omit(Exp_RFEI_2))
+summary(m_6)
 ```
 
-Multivariate model 1 has the highest R squared, significant p, and t values. I will go forward with models 1-3. I am not going forward with models 3-6 because it showed too small of an increase in fit for adding another variable. 
+Multivariate models 3 and 3 have the highest R squared, significant p, and t values. I will go forward with models 1-3. I am not going forward with models 3-6 because it showed too small of an increase in fit for adding another variable. 
 
 ```{r Validation}
 Valid_1 <- lm(Value ~ RFEI + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15, data=valid, NaRV.omit(RFEI))
