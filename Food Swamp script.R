@@ -60,6 +60,14 @@ FINAL_df <- mutate(FINAL_df, RFEI = (FINAL_df$FFR14 + FINAL_df$CONVS14)/(FINAL_d
 FINAL_df<- mutate(FINAL_df, Exp_RFEI_1 = (FINAL_df$CONVS14 + FINAL_df$SUPERC14 + FINAL_df$FFR14)/(FINAL_df$GROC14 + FINAL_df$FMRKT16 + FINAL_df$SPECS14))
 FINAL_df<- mutate(FINAL_df, Exp_RFEI_2 = (FINAL_df$CONVS14 + FINAL_df$FFR14)/(FINAL_df$GROC14 + FINAL_df$FMRKT16 + FINAL_df$SPECS14 + FINAL_df$SUPERC14))
 
+#Rename variables to be more syntatically valid 
+FINAL_df <- rename(FINAL_df, c("Low_Access"="LACCESS_LOWI15","Low Access_PCT"="PCT_LACCESS_LOWI15","Farmers"="FMRKT16","Grocery"="GROC14",
+                               "Supercenter"="SUPERC14","Convenience"="CONVS14","Specialty"="SPECS14","Fast_Food"="FFR14","CVD"="Value",
+                               "Milk_Soda"="MILK_SODA_PRICE10","SNAP_PCT"="PCT_SNAP16","Gini_Index"="Estimate!!Gini Index",
+                               "Gini_Index_Margin"="Margin of Error!!Gini Index","WHITE_PCT"="PCT_NHWHITE10","BLACK_PCT"="PCT_NHBLACK10",
+                               "HISPANIC_PCT"="PCT_HISP10","ASIAN_PCT"="PCT_NHASIAN10","Native_PCT"="PCT_NHNA10","Pacific_PCT"="PCT_NHPI10",
+                               "65Older_PCT"="PCT_65OLDER10","18Younger_PCT"="PCT_18YOUNGER10","Median_Income"="MEDHHINC15"))
+
 #Remove data where state is NA as that removes Puerto Rico where data is missing. Also deleting any rows that have Na in Value since they have no CVD data to analyze.
 FINAL_df <- na.omit(FINAL_df)
 
@@ -123,7 +131,7 @@ summary(m_5)
 m_6 <- lm(Value ~ Exp_RFEI_2 + LACCESS_LOWI15 + `Estimate!!Gini Index` + MEDHHINC15 + PCT_SNAP16, data = train, NaRV.omit(Exp_RFEI_2))
 summary(m_6)
 
-#multivariate model 3 has highest R squared, significant p and t values
+#multivariate models 1 and 3 have highest R squared, significant p and t values
 #will go forward with models 1-3, not going forward with models 3-6 b/c it showed too small of increase in fit for adding another variable
 
 #now going to valid stage
