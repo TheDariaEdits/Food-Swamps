@@ -1,7 +1,6 @@
 library(tidyverse)
 library(readxl)
 library(data.table)
-library(IDPmisc)
 
 #Using fread so that I can control what columns are imported, may want data for Tableau 
 #working_df <- fread("Food Access Research data.csv", select = c("CensusTract","State","County","POP2010","OHU2010"))
@@ -71,8 +70,10 @@ FINAL_df <- rename(FINAL_df, c("Low_Access"="LACCESS_LOWI15","Low Access_PCT"="P
 #Remove data where state is NA as that removes Puerto Rico where data is missing. Also deleting any rows that have Na in Value since they have no CVD data to analyze.
 FINAL_df <- na.omit(FINAL_df)
 
-#find missing values
+#find missing values and replace any infinite values due to calc variables
 missing <- FINAL_df[!complete.cases(FINAL_df),]
+
+FINAL_df[] <- lapply(FINAL_df, function(x) replace(x, is.infinite(x), NA))
 
 #remove intermediates from global environment 
 rm(access, CVD_df, Gini_Index, markets, milk_soda, restaurants, SNAP, stores,
@@ -82,7 +83,7 @@ rm(access, CVD_df, Gini_Index, markets, milk_soda, restaurants, SNAP, stores,
 summary(FINAL_df)
 
 #Split data
-set.seed(123)
+set.seed(1234)
 spec = c(train = .7, test = .15, valid = .15)
 
 g = sample(cut(
@@ -98,9 +99,9 @@ lapply(seq_along(res), function(x) {
 })
 
 #linear regressions for CVF
-lm_1 <- lm(RFEI ~ CVD, data = train, NaRV.omit(RFEI))
-lm_2 <- lm(Exp_RFEI_1 ~ CVD, data = train, NaRV.omit(Exp_RFEI_1))
-lm_3 <- lm(Exp_RFEI_2 ~ CVD, data = train, NaRV.omit(Exp_RFEI_2))
+lm_1 <- lm(RFEI ~ CVD, data = train)
+lm_2 <- lm(Exp_RFEI_1 ~ CVD, data = train)
+lm_3 <- lm(Exp_RFEI_2 ~ CVD, data = train)
 
 #summary to see models fit
 summary(lm_1)
@@ -110,45 +111,47 @@ summary(lm_3)
 #From T and P value it is statistically significant but the r square does not explain variance so need a better fit model
 
 #multivariate 
-m_1 <- lm(CVD ~ RFEI + Low_Access + Gini_Index + Median_Income, data=train, NaRV.omit(RFEI))
+m_1 <- lm(CVD ~ RFEI + Low_Access + Gini_Index + Median_Income, data=train)
 summary(m_1)
 
-m_2 <- lm(CVD ~ Exp_RFEI_1 + Low_Access + Gini_Index + Median_Income, data=train, NaRV.omit(Exp_RFEI_1))
+m_2 <- lm(CVD ~ Exp_RFEI_1 + Low_Access + Gini_Index + Median_Income, data=train)
 summary(m_2)
 
-m_3 <- lm(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income, data=train, NaRV.omit(Exp_RFEI_2))
+m_3 <- lm(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income, data=train)
 summary(m_3)
 
-m_4 <- lm(CVD ~ RFEI + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data = train, NaRV.omit(RFEI))
+m_4 <- lm(CVD ~ RFEI + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data = train)
 summary(m_4)
 
-m_5 <- lm(CVD ~ Exp_RFEI_1 + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data = train, NaRV.omit(Exp_RFEI_1))
+m_5 <- lm(CVD ~ Exp_RFEI_1 + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data = train)
 summary(m_5)
 
-m_6 <- lm(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data = train, NaRV.omit(Exp_RFEI_2))
+m_6 <- lm(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data = train)
 summary(m_6)
 
-#multivariate models 1 and 3 have highest R squared, significant p and t values
-#will go forward with models 1-3, not going forward with models 3-6 b/c it showed too small of increase in fit for adding another variable
+#multivariate models 4-6 have highest R squared, significant p and t values
+#will go forward with models 4-6
 
 #now going to valid stage
 
-Valid_1 <- lm(CVD ~ RFEI + Low_Access + Gini_Index + Median_Income, data=valid, NaRV.omit(RFEI))
+Valid_1 <- lm(CVD ~ RFEI + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data=valid)
 summary(Valid_1)
 anova(Valid_1)
 
-Valid_2 <- lm(CVD ~ Exp_RFEI_1 + Low_Access + Gini_Index + Median_Income, data=valid, NaRV.omit(Exp_RFEI_1))
+Valid_2 <- lm(CVD ~ Exp_RFEI_1 + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data=valid)
 summary(Valid_2)
 anova(Valid_2)
 
-Valid_3 <- lm(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income, data=valid, NaRV.omit(Exp_RFEI_2))
+Valid_3 <- lm(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data=valid)
 summary(Valid_3)
 anova(Valid_3)
 
-#this data suggests model 3 is better 
-test_model <- lm(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income, data=test, NaRV.omit(Exp_RFEI_2))
+#this data suggests valid model 3 is better 
+test_model <- lm(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data=test)
 summary(test_model)
 anova(test_model)
+
+plot(CVD ~ Exp_RFEI_2 + Low_Access + Gini_Index + Median_Income + SNAP_PCT, data=test)
 
 
 
